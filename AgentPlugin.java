@@ -173,7 +173,7 @@ public class AgentPlugin extends Plugin {
                     while (es != null && (en = es.read(eb)) > 0) bo.write(eb, 0, en);
                     m = bo.toString("UTF-8");
                 } catch (Exception e) { }
-                return "HTTP " + code + (m.isEmpty() ? "" : " " + m.substring(0, Math.min(90, m.length())));
+                return "HTTP " + code + (m.isEmpty() ? "" : " " + m.substring(0, Math.min(220, m.length())));
             }
             File f = new File(getContext().getCacheDir(), "v.mp3");
             FileOutputStream fo = new FileOutputStream(f);
@@ -207,6 +207,10 @@ public class AgentPlugin extends Plugin {
                     JSONObject b = new JSONObject().put("text", t).put("format", "mp3");
                     if (!p.getString("fvoice", "").isEmpty()) b.put("reference_id", p.getString("fvoice", ""));
                     err = cloudSpeak("https://api.fish.audio/v1/tts", "Authorization", "Bearer " + p.getString("fkey", ""), b.toString());
+                } else if (prov.equals("orfish") && !p.getString("okey", "").isEmpty()) {
+                    cloud = true;
+                    err = cloudSpeak("https://openrouter.ai/api/v1/audio/speech", "Authorization", "Bearer " + p.getString("okey", ""),
+                            new JSONObject().put("model", "fish-audio/s2.1-pro-free").put("input", t).put("response_format", "mp3").toString());
                 } else if (prov.equals("eleven") && !p.getString("ekey", "").isEmpty() && !p.getString("evoice", "").isEmpty()) {
                     cloud = true;
                     err = cloudSpeak("https://api.elevenlabs.io/v1/text-to-speech/" + p.getString("evoice", ""), "xi-api-key", p.getString("ekey", ""), new JSONObject().put("text", t).toString());
@@ -273,7 +277,7 @@ public class AgentPlugin extends Plugin {
         vp().edit().putString("vname", call.getString("name", "")).putFloat("vpitch", call.getFloat("pitch", 1.0f))
                 .putFloat("vrate", call.getFloat("rate", 1.0f)).putString("vprov", call.getString("prov", "phone"))
                 .putString("ekey", call.getString("ekey", "")).putString("evoice", call.getString("evoice", ""))
-                .putString("fkey", call.getString("fkey", "")).putString("fvoice", call.getString("fvoice", "")).apply();
+                .putString("okey", call.getString("okey", "")).putString("fkey", call.getString("fkey", "")).putString("fvoice", call.getString("fvoice", "")).apply();
         if (tts != null && ttsReady) applyVoice();
         call.resolve();
     }

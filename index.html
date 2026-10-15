@@ -90,7 +90,7 @@ label{font-size:13px;color:var(--mu)}
 <label for="vs">Phone voice</label><select id="vs"><option value="">Default</option></select>
 <label for="vp">Pitch</label><input id="vp" type="range" min="0.6" max="1.4" step="0.05" value="1" style="padding:0">
 <label for="vr">Speed</label><input id="vr" type="range" min="0.6" max="1.4" step="0.05" value="1" style="padding:0">
-<label for="vq">Voice engine</label><select id="vq"><option value="phone">Phone voice</option><option value="fish">Fish Audio</option><option value="eleven">ElevenLabs</option></select>
+<label for="vq">Voice engine</label><select id="vq"><option value="phone">Phone voice</option><option value="fish">Fish Audio</option><option value="orfish">Fish voice via OpenRouter (free, no clone)</option><option value="eleven">ElevenLabs</option></select>
 <label for="fk">Fish Audio API key</label><input id="fk" type="password" autocomplete="off" placeholder="paste key">
 <label for="fv">Fish Audio voice model ID (your clone)</label><input id="fv" autocapitalize="off" spellcheck="false" placeholder="e.g. 8ef4a238714b45718ce04243307c57a7">
 <label for="ek">ElevenLabs key</label><input id="ek" type="password" autocomplete="off" placeholder="paste key">
@@ -180,6 +180,7 @@ function localReply(t,c){
 function findRoutine(R,t){const k=Object.keys(R).find(n=>n.toLowerCase()==t.trim().toLowerCase());return k?R[k]:null}
 //</P>
 const ctx=()=>new Date().toString().replace(/ GMT.*$/,'');
+const vfix=e=>/HTTP 402/.test(e)?'Fish Audio says your API credit is empty. The 8,000 credits are for the Fish website, not the API. Add API credit in Fish Audio Billing, or choose the free OpenRouter voice.':'Voice problem: '+e+'.';
 const ME='You are Roohu, a friendly assistant that works an Android phone. Your name is Roohu, never "Assistant". Keep answers short and simple. ';
 const SYSR=ME+'If the user asks a question or chats, answer with JSON only: {"say":"your short answer"}. If the user wants something done on the phone, or needs live information (weather, news, scores, prices, anything that changes), answer with JSON only: {"task":true}.';
 const SYS=ME+'If the user only asks a question or chats, answer with JSON only: {"say":"your short answer"}. Otherwise you control an Android phone with simple steps. Answer with JSON only, no other text: {"steps":[{"a":"open","t":"App name"}]}. Allowed a: open (t = app name), tap (t = visible button text), type (t = text), scroll (t = up or down), back, home, enter (press enter), url (t = a web link, or app|link), wachat (t = contact name; opens their WhatsApp chat), wait (t = seconds), read. For web searches use url with https://www.google.com/search?q=... For YouTube use url with youtube|https://www.youtube.com/results?search_query=... Use at most 12 steps. Use common English button names. Never use banking, payment or password apps. If the task is not possible, return {"steps":[]}.';
@@ -212,7 +213,7 @@ function setState(s){state=s;$('#stt').textContent=LB[s]}
 let voice=ld('voice')!=='0';
 const syncV=()=>$('#vb').classList.toggle('off',!voice);
 function speak(t){if(!voice)return;
-  if(!preview){try{Promise.resolve(Agent.speak({text:t})).then(r=>{if(r&&r.ok===false&&!window.vW){window.vW=1;msg('a','Voice problem: '+r.err+'. I used the phone voice. Check the voice key and ID in Settings.',{quiet:1})}}).catch(()=>{})}catch(e){}setState('speak');setTimeout(()=>{if(state=='speak')setState('idle')},Math.min(8000,t.length*65));return}
+  if(!preview){try{Promise.resolve(Agent.speak({text:t})).then(r=>{if(r&&r.ok===false&&!window.vW){window.vW=1;msg('a',vfix(r.err)+' I used the phone voice.',{quiet:1})}}).catch(()=>{})}catch(e){}setState('speak');setTimeout(()=>{if(state=='speak')setState('idle')},Math.min(8000,t.length*65));return}
   if(!window.speechSynthesis)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.onstart=()=>{if(state=='idle')setState('speak')};u.onend=()=>{if(state=='speak')setState('idle')};speechSynthesis.speak(u)}catch(e){}}
 let AC=null;function beep(k){if(ld('sound')==='0')return;if(!preview){try{Promise.resolve(Agent.sound({k})).catch(()=>{})}catch(e){}return}
   try{const F=({start:[523,659,784],send:[880],done:[784,1047],err:[330,247]})[k]||[660];AC=AC||new (window.AudioContext||window.webkitAudioContext)();F.forEach((f,i)=>{const o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime+i*.12;o.frequency.value=f;g.gain.value=.05;o.connect(g);g.connect(AC.destination);o.start(t);g.gain.exponentialRampToValueAtTime(.0001,t+.2);o.stop(t+.22)})}catch(e){}}
@@ -300,10 +301,10 @@ $('#tb').onclick=async()=>{const tok=$('#tt').value.trim();if(!/^\d+:[\w-]{20,}$
   try{await Agent.botStart({token:tok,code,base:c.base||'',key:c.key||'',model:c.model||''});tn('Running. Send this to your bot: /pair '+code);poll()}catch(e){tn('Could not start: '+(e.message||e)+'. Is the service on?')}};
 $('#tp2').onclick=async()=>{try{await Agent.botStop();tn('Bot stopped.');poll()}catch(e){}};
 $('#au').value=ld('auto')||'1';const setAuto=()=>{try{Agent.setAuto({level:+$('#au').value})}catch(e){}};$('#au').onchange=()=>{sv('auto',$('#au').value);setAuto()};setAuto();
-const vcfg=()=>({name:$('#vs').value,pitch:+$('#vp').value,rate:+$('#vr').value,prov:$('#vq').value,fkey:$('#fk').value.trim(),fvoice:$('#fv').value.trim(),ekey:$('#ek').value.trim(),evoice:$('#ev').value.trim()||'21m00Tcm4TlvDq8ikWAM'});
+const vcfg=()=>({name:$('#vs').value,pitch:+$('#vp').value,rate:+$('#vr').value,prov:$('#vq').value,okey:/openrouter/.test(cfg().base||'')?(cfg().key||''):'',fkey:$('#fk').value.trim(),fvoice:$('#fv').value.trim(),ekey:$('#ek').value.trim(),evoice:$('#ev').value.trim()||'21m00Tcm4TlvDq8ikWAM'});
 try{const v=JSON.parse(ld('vc')||'null');if(v){$('#vp').value=v.pitch;$('#vr').value=v.rate;$('#vq').value=v.prov||'phone';$('#fk').value=v.fkey||'';$('#fv').value=v.fvoice||'';$('#ek').value=v.ekey||'';$('#ev').value=v.evoice||'';Agent.setVoice(v)}}catch(e){}
 (async()=>{try{const r=await Promise.race([Agent.voices(),new Promise((_,j)=>setTimeout(j,5000))]);const s=$('#vs');(r.voices||[]).sort((a,b)=>b.q-a.q).slice(0,25).forEach(v=>{const o=document.createElement('option');o.value=v.name;o.textContent=v.label;s.append(o)});try{s.value=JSON.parse(ld('vc')).name}catch(e){}}catch(e){}})();
-$('#vsv').onclick=async()=>{const c=vcfg();sv('vc',JSON.stringify(c));$('#vn').textContent='Testing…';try{await Agent.setVoice(c);const r=await Agent.speak({text:'Hi. This is how I sound now.'});$('#vn').textContent=r&&r.ok===false?'Voice problem: '+r.err+'. I used the phone voice instead.':'Voice works.'}catch(e){$('#vn').textContent='Voice problem: '+(e.message||e)}};
+$('#vsv').onclick=async()=>{const c=vcfg();sv('vc',JSON.stringify(c));$('#vn').textContent='Testing…';try{await Agent.setVoice(c);const r=await Agent.speak({text:'Hi. This is how I sound now.'});$('#vn').textContent=r&&r.ok===false?vfix(r.err)+' I used the phone voice instead.':'Voice works.'}catch(e){$('#vn').textContent='Voice problem: '+(e.message||e)}};
 /* orb */
 const cv=$('#orb'),g=cv.getContext('2d'),R0=window.devicePixelRatio||1;let D=300;
 function fit(){D=Math.max(190,Math.min(320,innerWidth*.8,innerHeight*.36));cv.style.width=cv.style.height=D+'px';cv.width=cv.height=D*R0}
